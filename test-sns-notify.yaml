@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
-  Delta SVOC Pipeline for Serverless Applications
+  Pipeline for Serverless Applications
 Metadata: {}
 Resources:
   PipelineSNSTopic:
@@ -8,7 +8,7 @@ Resources:
     Properties:
       TopicName: test-sns-pipeline-notification
       Subscription:
-        - Endpoint: sinhsou@amazon.com
+        - Endpoint: emailsouravsinha@amazon.com
           Protocol: email
   SVOCInfraPipeline:
     Type: 'AWS::CodePipeline::Pipeline'
