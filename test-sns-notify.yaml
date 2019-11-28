@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Delta SVOC Pipeline for Serverless Applications
+Metadata: {}
+Resources:
+  PipelineSNSTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      TopicName: test-sns-pipeline-notification
+      Subscription:
+        - Endpoint: sinhsou@amazon.com
+          Protocol: email
+  SVOCInfraPipeline:
+    Type: 'AWS::CodePipeline::Pipeline'
+    Properties:
+      ArtifactStore:
+        Type: S3
+        Location: test-sns-notify
+      Name: "create-test-sns-notify"
+      RoleArn: arn:aws:iam::566912173220:role/Dev-ServerlessDeltaApp-CodePipeline
+      Stages:
+        # SOURCE
+        - Name: Source
+          Actions:
+            - Name: AppArtifact
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: '1'
+                Provider: S3
+              OutputArtifacts:
+                - Name: test-sns-notify
+              Configuration:
+                PollForSourceChanges: 'true'
+                S3Bucket: test-sns-notify
+                S3ObjectKey: template.zip
+              RunOrder: 1
+
+            - Name: AppTemplate
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: '1'
+                Provider: S3
+              OutputArtifacts:
+                - Name: test-sns-notify43
+              Configuration:
+                PollForSourceChanges: 'true'
+                S3Bucket: test-sns-notify
+                S3ObjectKey: template.zip
+              RunOrder: 1
+
+        - Name: DeployCode
+          Actions:
+            - InputArtifacts:
+                - Name: test-sns-notify
+              Name: CreateUpdateLambda
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: 1
+              Configuration:
+                ChangeSetName: Deploy
+                ActionMode: CREATE_UPDATE
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn: arn:aws:iam::566912173220:role/Dev-ServerlessDeltaApp-CodePipeline
+                StackName: test-sns-Serverless-Stack
+                ##TemplatePath: !Sub 'BuildOutput::packaged-template.yml'
+              RunOrder: 1
+
+  EventRuleForNotification: 
+    Type: "AWS::Events::Rule"
+    DependsOn: 
+    - PipelineSNSTopic
+    - SVOCInfraPipeline
+
+    Properties: 
+      Description: "EventRuleForNotification"
+      EventPattern: 
+        source:
+        - aws.codepipeline
+        
+        detail-type:
+        - CodePipeline Pipeline Execution State Change
+        detail:
+          state:
+          - "FAILED"
+          - "SUCCEEDED"
+          pipeline:
+          - 
+            Ref: SVOCInfraPipeline
+  
+      State: "ENABLED"
+      
+      Targets: 
+        - 
+          Arn: 
+            Ref: "PipelineSNSTopic"
+          Id: "PipelineSNSTopic"
+          InputTransformer:
+            InputTemplate: '"The Pipeline <pipeline> has failed. Go to https://console.aws.amazon.com/codepipeline/home?region=us-east-1#/view/<pipeline>" '
+            InputPathsMap:
+              pipeline: "$.detail.pipeline" 
